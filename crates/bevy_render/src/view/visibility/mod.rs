@@ -21,7 +21,7 @@ use bevy_utils::{Parallel, TypeIdMap};
 use super::NoCpuCulling;
 use crate::sync_world::MainEntity;
 use crate::{
-    camera::{Camera, CameraProjection},
+    camera::{Camera, CameraProjection, Projection},
     mesh::{Mesh, Mesh3d, MeshAabb},
     primitives::{Aabb, Frustum, Sphere},
 };

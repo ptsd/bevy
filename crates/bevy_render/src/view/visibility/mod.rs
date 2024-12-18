@@ -21,7 +21,7 @@ use bevy_utils::{Parallel, TypeIdMap};
 use super::NoCpuCulling;
 use crate::sync_world::MainEntity;
 use crate::{
-    camera::{Camera, CameraProjection},
+    camera::{Camera, CameraProjection, Projection},
     mesh::{Mesh, Mesh3d, MeshAabb},
     primitives::{Aabb, Frustum, Sphere},
 };
@@ -507,6 +507,7 @@ pub fn check_visibility<QF>(
         &mut VisibleEntities,
         &Frustum,
         Option<&RenderLayers>,
+        Option<&Projection>,
         &Camera,
         Has<NoCpuCulling>,
     )>,
@@ -529,8 +530,15 @@ pub fn check_visibility<QF>(
 {
     let visible_entity_ranges = visible_entity_ranges.as_deref();
 
-    for (view, mut visible_entities, frustum, maybe_view_mask, camera, no_cpu_culling) in
-        &mut view_query
+    for (
+        view,
+        mut visible_entities,
+        frustum,
+        maybe_view_mask,
+        maybe_projection,
+        camera,
+        no_cpu_culling,
+    ) in &mut view_query
     {
         if !camera.is_active {
             continue;
@@ -575,17 +583,25 @@ pub fn check_visibility<QF>(
                 // If we have an aabb, do frustum culling
                 if !no_frustum_culling && !no_cpu_culling {
                     if let Some(model_aabb) = maybe_model_aabb {
+                        // Only use far culling if we have a projection with some `far` value.
+                        let use_far_culling = maybe_projection.is_some_and(|p| p.far().is_some());
+
                         let world_from_local = transform.affine();
                         let model_sphere = Sphere {
                             center: world_from_local.transform_point3a(model_aabb.center),
                             radius: transform.radius_vec3a(model_aabb.half_extents),
                         };
                         // Do quick sphere-based frustum culling
-                        if !frustum.intersects_sphere(&model_sphere, false) {
+                        if !frustum.intersects_sphere(&model_sphere, use_far_culling) {
                             return;
                         }
                         // Do aabb-based frustum culling
-                        if !frustum.intersects_obb(model_aabb, &world_from_local, true, false) {
+                        if !frustum.intersects_obb(
+                            model_aabb,
+                            &world_from_local,
+                            true,
+                            use_far_culling,
+                        ) {
                             return;
                         }
                     }
